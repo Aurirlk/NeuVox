@@ -1,0 +1,89 @@
+# 小智语音交互服务 Docker Compose 配置
+# 包含 FastAPI 服务、PostgreSQL、Redis
+
+version: '3.8'
+
+services:
+  # ==================== 主应用服务 ====================
+  xiaozhi-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xiaozhi-api
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://xiaozhi:${POSTGRES_PASSWORD:-xiaozhi123}@postgres:5432/xiaozhi
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - xiaozhi-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ==================== PostgreSQL 数据库 ====================
+  postgres:
+    image: postgres:15-alpine
+    container_name: xiaozhi-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      - POSTGRES_DB=xiaozhi
+      - POSTGRES_USER=xiaozhi
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-xiaozhi123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - xiaozhi-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xiaozhi -d xiaozhi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ==================== Redis 缓存 ====================
+  redis:
+    image: redis:7-alpine
+    container_name: xiaozhi-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - xiaozhi-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+# ==================== 数据卷 ====================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ==================== 网络配置 ====================
+networks:
+  xiaozhi-network:
+    driver: bridge
