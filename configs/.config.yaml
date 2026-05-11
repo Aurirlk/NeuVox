@@ -1,0 +1,238 @@
+# 小智语音交互服务 - 统一配置文件
+# 参考 xiaozhi-esp32-server 的配置格式
+
+# ==================== 模块选择 ====================
+selected_module:
+  ASR: MiniMaxASR           # 语音识别
+  LLM: DeepSeekLLM          # 大模型
+  TTS: MiMoTTS              # 语音合成
+  Intent: IntentRouter       # 意图路由
+  CRM: CRMAnalyzer          # CRM 分析
+  Knowledge: RAGService      # 知识库
+
+# ==================== 大模型配置 ====================
+LLM:
+  DeepSeekLLM:
+    type: openai
+    model_name: deepseek-v4-flash
+    url: https://api.deepseek.com/v1/chat/completions
+    api_key: "${DEEPSEEK_API_KEY}"
+    temperature: 0.7
+    max_tokens: 2048
+    timeout: 60
+    
+  MiniMaxLLM:
+    type: openai
+    model_name: MiniMax-Text-01
+    url: https://api.minimax.chat/v1/text/chatcompletion_v2
+    api_key: "${MINIMAX_API_KEY}"
+    group_id: "${MINIMAX_GROUP_ID}"
+    temperature: 0.7
+    max_tokens: 2048
+    timeout: 60
+
+# ==================== 语音识别配置 ====================
+ASR:
+  MiniMaxASR:
+    type: minimax
+    url: https://api.minimax.chat/v1/audio/speech_to_text
+    api_key: "${MINIMAX_API_KEY}"
+    language: zh-CN
+    timeout: 30
+    supported_formats:
+      - .wav
+      - .mp3
+      - .m4a
+      - .ogg
+
+# ==================== 语音合成配置 ====================
+TTS:
+  MiMoTTS:
+    type: mimo
+    model: mimo-v2.5-tts
+    url: https://api.minimax.chat/v1/t2a_v2
+    api_key: "${MIMO_TTS_API_KEY}"
+    timeout: 60
+    default_voice: mimo-v2.5-tts
+    default_speed: 1.0
+    audio_setting:
+      sample_rate: 32000
+      bitrate: 128000
+      format: wav
+    voices:
+      - id: mimo-v2.5-tts
+        name: MiMo 标准语音
+      - id: mimo-v2.5-tts-voiceclone
+        name: MiMo 声音克隆
+      - id: mimo-v2.5-tts-voicedesign
+        name: MiMo 声音设计
+      
+  EdgeTTS:
+    type: edge
+    voice: zh-CN-XiaoxiaoNeural
+    output_dir: tmp/
+    
+  MiniMaxTTS:
+    type: minimax
+    url: https://api.minimax.chat/v1/t2a_v2
+    api_key: "${MINIMAX_API_KEY}"
+    model: speech-01
+    timeout: 60
+    voices:
+      - id: male-qn-qingse
+        name: 青涩青年
+      - id: male-qn-jingying
+        name: 精英青年
+      - id: female-shaonv
+        name: 少女
+      - id: female-yujie
+        name: 御姐
+
+# ==================== 意图路由配置 ====================
+Intent:
+  IntentRouter:
+    type: keyword_and_llm
+    enabled: true
+    confidence_threshold: 0.8
+    intents:
+      weather:
+        keywords:
+          - 天气
+          - 气温
+          - 温度
+          - 下雨
+          - 晴天
+        tool: get_weather
+      news:
+        keywords:
+          - 新闻
+          - 热点
+          - 大瓜
+        tool: get_trending_news
+      search:
+        keywords:
+          - 搜索
+          - 查一下
+          - 是什么
+        tool: web_search
+      knowledge:
+        keywords:
+          - 知识库
+          - 专业
+          - 领域
+        tool: query_knowledge
+
+# ==================== 工具配置 ====================
+Tools:
+  get_weather:
+    type: function_calling
+    description: 获取指定中国城市的实时天气信息
+    parameters:
+      city:
+        type: string
+        description: 城市名称
+        required: true
+    api_key: "${QWEATHER_API_KEY}"
+    url: https://geoapi.qweather.com/v2/city/lookup
+    
+  get_trending_news:
+    type: function_calling
+    description: 获取不同分类的最新热点新闻
+    parameters:
+      category:
+        type: string
+        description: 新闻类别
+        default: society
+    rss_urls:
+      society: https://www.chinanews.com.cn/rss/society.xml
+      finance: https://www.chinanews.com.cn/rss/finance.xml
+      world: https://www.chinanews.com.cn/rss/world.xml
+      military: https://www.chinanews.com.cn/rss/mil.xml
+      entertainment: https://www.chinanews.com.cn/rss/ent.xml
+      sports: https://www.chinanews.com.cn/rss/sports.xml
+      
+  web_search:
+    type: function_calling
+    description: 执行互联网搜索引擎查询
+    parameters:
+      query:
+        type: string
+        description: 搜索关键词
+        required: true
+      max_results:
+        type: integer
+        description: 返回结果数量
+        default: 3
+    url: https://cn.bing.com/search
+    
+  query_knowledge:
+    type: function_calling
+    description: 查询知识库获取专业信息
+    parameters:
+      query:
+        type: string
+        description: 查询内容
+        required: true
+      context:
+        type: string
+        description: 上下文信息
+    coze_workflow_id: "${COZE_WORKFLOW_KNOWLEDGE_QA}"
+
+# ==================== CRM 配置 ====================
+CRM:
+  CRMAnalyzer:
+    enabled: true
+    async_analysis: true
+    extraction_fields:
+      - name
+      - gender
+      - age_range
+      - occupation
+      - city
+      - preferences
+      - intent
+      - budget_range
+      - tags
+
+# ==================== 知识库配置 ====================
+Knowledge:
+  RAGService:
+    enabled: true
+    storage: sqlite
+    db_path: data/knowledge.db
+    knowledge_dir: data/Knowledge
+    chunk_size: 1000  # 法律文档建议 800-1000
+    chunk_overlap: 100
+    supported_formats:
+      - .md
+      - .txt
+      - .pdf
+      - .docx
+
+# ==================== Coze 工作流配置 ====================
+Coze:
+  api_key: "${COZE_API_KEY}"
+  base_url: https://api.coze.com
+  timeout: 30
+  workflows:
+    knowledge_qa:
+      workflow_id: "${COZE_WORKFLOW_KNOWLEDGE_QA}"
+    general_chat:
+      workflow_id: "${COZE_WORKFLOW_GENERAL_CHAT}"
+
+# ==================== 服务器配置 ====================
+server:
+  host: 0.0.0.0
+  port: 8000
+  debug: true
+
+# ==================== 数据库配置 ====================
+database:
+  type: sqlite
+  url: sqlite+aiosqlite:///./xiaozhi.db
+
+# ==================== 成本控制 ====================
+cost:
+  daily_limit: 10.0
+  monthly_limit: 200.0
+  warn_threshold: 0.8
