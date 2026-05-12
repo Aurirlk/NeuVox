@@ -6,7 +6,7 @@ import os
 import uuid
 import httpx
 from typing import List, Dict, Optional, AsyncGenerator
-from app.config import settings
+from app.utils.config_loader import config
 from app.services.base.tts_base import TTSBase
 
 
@@ -14,10 +14,11 @@ class MiniMaxTTS(TTSBase):
     """MiniMax 语音合成服务（备份）"""
     
     def __init__(self):
-        self.api_key = settings.MINIMAX_API_KEY
-        self.api_url = settings.MINIMAX_TTS_URL
-        self.model = settings.MINIMAX_TTS_MODEL
-        self.output_dir = settings.OUTPUT_DIR
+        tts_config = config.get_tts_config("MiniMaxTTS")
+        self.api_key = tts_config.get("api_key")
+        self.api_url = tts_config.get("url", "https://api.minimax.chat/v1/t2a_v2")
+        self.model = tts_config.get("model", "speech-01")
+        self.output_dir = tts_config.get("output_dir", "outputs")
         
     async def synthesize(
         self, 

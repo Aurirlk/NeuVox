@@ -4,7 +4,7 @@ MiniMax ASR 语音识别实现
 import os
 import httpx
 from typing import List
-from app.config import settings
+from app.utils.config_loader import config
 from app.services.base.asr_base import ASRBase
 from app.utils.logger import logger
 from app.utils.retry import retry, CircuitBreaker, RetryExhaustedError
@@ -17,8 +17,9 @@ class MiniMaxASR(ASRBase):
     _circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60)
     
     def __init__(self):
-        self.api_key = settings.MINIMAX_API_KEY
-        self.api_url = settings.MINIMAX_ASR_URL
+        asr_config = config.get_asr_config("MiniMaxASR")
+        self.api_key = asr_config.get("api_key")
+        self.api_url = asr_config.get("url", "https://api.minimax.chat/v1/audio/speech_to_text")
         
     @retry(max_retries=3, delay=1.0, backoff_factor=2.0,
            exceptions=(httpx.TimeoutException, httpx.ConnectError))

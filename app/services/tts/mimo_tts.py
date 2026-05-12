@@ -8,7 +8,7 @@ import uuid
 import httpx
 import aiofiles
 from typing import List, Dict, Optional, AsyncGenerator
-from app.config import settings
+from app.utils.config_loader import config
 from app.services.base.tts_base import TTSBase
 from app.utils.logger import logger
 from app.utils.retry import retry, CircuitBreaker, RetryExhaustedError
@@ -21,10 +21,11 @@ class MiMoTTS(TTSBase):
     _circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60)
     
     def __init__(self):
-        self.api_key = settings.MIMO_TTS_API_KEY
-        self.api_url = settings.MIMO_TTS_API_URL
-        self.model = settings.MIMO_TTS_MODEL
-        self.output_dir = settings.OUTPUT_DIR
+        tts_config = config.get_tts_config("MiMoTTS")
+        self.api_key = tts_config.get("api_key")
+        self.api_url = tts_config.get("url", "https://api.minimax.chat/v1/t2a_v2")
+        self.model = tts_config.get("model", "mimo-v2.5-tts")
+        self.output_dir = tts_config.get("output_dir", "outputs")
         
     async def synthesize(
         self, 
