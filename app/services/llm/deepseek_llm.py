@@ -5,7 +5,7 @@ DeepSeek LLM 大语言模型实现
 import time
 import httpx
 from typing import List, Dict, Optional, AsyncGenerator, Tuple
-from app.config import settings
+from app.utils.config_loader import config
 from app.services.base.llm_base import LLMBase
 from app.utils.logger import logger
 from app.utils.retry import retry, CircuitBreaker, RetryExhaustedError
@@ -18,9 +18,12 @@ class DeepSeekLLM(LLMBase):
     _circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60)
     
     def __init__(self):
-        self.api_key = settings.DEEPSEEK_API_KEY
-        self.api_url = settings.DEEPSEEK_API_URL
-        self.model = settings.DEEPSEEK_MODEL
+        llm_config = config.get_llm_config("DeepSeekLLM")
+        self.api_key = llm_config.get("api_key")
+        self.api_url = llm_config.get("url", "https://api.deepseek.com/v1/chat/completions")
+        self.model = llm_config.get("model_name", "deepseek-v4-flash")
+        self.temperature = llm_config.get("temperature", 0.7)
+        self.max_tokens = llm_config.get("max_tokens", 2048)
         
         self.system_prompt = """你是一个友好、专业的智能语音助手。请用简洁自然的中文回答用户的问题。
 回复要口语化，适合语音播报，避免使用Markdown格式和特殊符号。"""
@@ -80,8 +83,8 @@ class DeepSeekLLM(LLMBase):
                     json={
                         "model": self.model,
                         "messages": messages,
-                        "temperature": settings.LLM_TEMPERATURE,
-                        "max_tokens": settings.LLM_MAX_TOKENS,
+                        "temperature": self.temperature,
+                        "max_tokens": self.max_tokens,
                     }
                 )
                 
@@ -164,8 +167,8 @@ class DeepSeekLLM(LLMBase):
                     json={
                         "model": self.model,
                         "messages": messages,
-                        "temperature": settings.LLM_TEMPERATURE,
-                        "max_tokens": settings.LLM_MAX_TOKENS,
+                        "temperature": self.temperature,
+                        "max_tokens": self.max_tokens,
                         "stream": True
                     }
                 ) as response:

@@ -3,7 +3,7 @@ MiniMax LLM 大语言模型实现（备份）
 """
 import httpx
 from typing import List, Dict, Optional, AsyncGenerator
-from app.config import settings
+from app.utils.config_loader import config
 from app.services.base.llm_base import LLMBase
 
 
@@ -11,10 +11,11 @@ class MiniMaxLLM(LLMBase):
     """MiniMax 大语言模型服务（备份）"""
     
     def __init__(self):
-        self.api_key = settings.MINIMAX_API_KEY
-        self.api_url = settings.MINIMAX_LLM_URL
-        self.model = settings.MINIMAX_LLM_MODEL
-        self.group_id = settings.MINIMAX_GROUP_ID
+        llm_config = config.get_llm_config("MiniMaxLLM")
+        self.api_key = llm_config.get("api_key")
+        self.api_url = llm_config.get("url", "https://api.minimax.chat/v1/text/chatcompletion_v2")
+        self.model = llm_config.get("model_name", "MiniMax-Text-01")
+        self.group_id = llm_config.get("group_id")
         
         self.system_prompt = """你是一个友好、专业的智能语音助手。请用简洁自然的中文回答用户的问题。
 回复要口语化，适合语音播报，避免使用Markdown格式和特殊符号。"""
