@@ -1,0 +1,110 @@
+# NeuVox 语音服务 Docker Compose 配置
+# 包含 FastAPI 服务、PostgreSQL、Redis、ChromaDB
+
+version: '3.8'
+
+services:
+  # ==================== 主应用服务 ====================
+  neuvox-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: neuvox-api
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - ../uploads:/app/uploads
+      - ../outputs:/app/outputs
+      - ../data:/app/data
+    env_file:
+      - ../.env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://neuvox:${POSTGRES_PASSWORD:-neuvox123}@postgres:5432/neuvox
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - neuvox-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ==================== PostgreSQL 数据库 ====================
+  postgres:
+    image: postgres:15-alpine
+    container_name: neuvox-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      - POSTGRES_DB=neuvox
+      - POSTGRES_USER=neuvox
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-neuvox123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - neuvox-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neuvox -d neuvox"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ==================== Redis 缓存 ====================
+  redis:
+    image: redis:7-alpine
+    container_name: neuvox-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - neuvox-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ==================== ChromaDB 向量数据库 ====================
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: neuvox-chromadb
+    ports:
+      - "${CHROMA_PORT:-8000}:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=False
+    restart: unless-stopped
+    networks:
+      - neuvox-network
+
+# ==================== 数据卷 ====================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  chroma_data:
+    driver: local
+
+# ==================== 网络配置 ====================
+networks:
+  neuvox-network:
+    driver: bridge
