@@ -30,13 +30,20 @@ class MiMoTTS(TTSBase):
         self, 
         text: str, 
         voice: Optional[str] = None,
-        speed: Optional[float] = None
+        speed: Optional[float] = None,
+        emotion: Optional[str] = None
     ) -> str:
         """
         将文本转换为语音
         
-        重试策略：网络错误自动重试 3 次
-        熔断策略：重试全部失败后才记录一次失败
+        Args:
+            text: 要转换的文本
+            voice: 音色选择（可选）
+            speed: 语速控制（可选）
+            emotion: 情感风格（可选）: cheerful/sad/angry/surprised等
+            
+        Returns:
+            生成的音频文件路径
         """
         if not self.api_key:
             raise ValueError("MIMO_TTS_API_KEY 未配置")
@@ -49,6 +56,13 @@ class MiMoTTS(TTSBase):
             
         voice = voice or settings.TTS_VOICE
         speed = speed or settings.TTS_SPEED
+        
+        # 如果指定了情绪，调整语速
+        if emotion:
+            from app.services.emotion.analyzer import emotion_analyzer
+            tts_params = emotion_analyzer.get_tts_params(emotion)
+            speed = tts_params.get("speed", speed)
+            logger.info(f"[TTS] 使用情绪风格: {emotion}, 语速: {speed}")
         
         output_filename = f"tts_{uuid.uuid4().hex[:8]}.wav"
         output_path = os.path.join(self.output_dir, output_filename)
