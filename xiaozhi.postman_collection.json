@@ -284,7 +284,7 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// 自动更新 session_id"
+          "// 自动更新 session_id",
           "if (!pm.environment.get('session_id')) {",
           "    pm.environment.set('session_id', 'session_' + Date.now());",
           "}"
