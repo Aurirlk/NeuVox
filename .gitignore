@@ -55,3 +55,6 @@ Thumbs.db
 *.pem
 *.key
 *.crt
+
+# ChromaDB 数据（自动生成）
+data/chroma_db/
