@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     MINIMAX_TTS_MODEL: str = "speech-01"
     MINIMAX_ASR_URL: str = "https://api.minimax.chat/v1/t2a_v2"
     
+    # 和风天气 API 配置
+    QWEATHER_API_KEY: Optional[str] = None
+    
     # 文件存储配置
     UPLOAD_DIR: str = "uploads"
     OUTPUT_DIR: str = "outputs"
@@ -75,6 +78,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "allow"
 
 
 settings = Settings()
